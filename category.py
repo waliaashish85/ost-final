@@ -9,6 +9,7 @@ from lib import templates
 from lib.models import Category
 from lib.models import Comment
 from lib.models import Item
+from xml.dom import minidom
 
 class CategoryHandler(webapp2.RequestHandler):
   @login_required
@@ -33,9 +34,10 @@ class CategoryHandler(webapp2.RequestHandler):
       for param in self.request.POST.items():
         if param[0] != 'catName':
           if category:
-            item = Item(name=cgi.escape(param[1]), category=category,
-                wins=0, losses=0)
-            item.put()
+            if param[1]:
+              item = Item(name=cgi.escape(param[1]), category=category,
+                  wins=0, losses=0)
+              item.put()
       self._show_home_page({'success': 'Saved category "%s" successfully' % cat_name})
     else:
       self.redirect(users.create_login_url("/"))
@@ -120,7 +122,7 @@ class CategoryHandler(webapp2.RequestHandler):
       if comment2:
         comment = Comment(text=comment2, owner=user, item=item2)
         comment.put()
-      self._show_home_page({'success': self.request.POST})
+      self._show_home_page({'success': 'Successfully saved the vote'})
     else:
       self.redirect(users.create_login_url("/"))
 
@@ -161,13 +163,18 @@ class CategoryHandler(webapp2.RequestHandler):
     item_list = []
     for item in items:
       try:
-        percentage = (item.wins * 100.0 / (item.wins + item.losses))
+        percentage = item.wins * 100.0 / (item.wins + item.losses)
+        percentage_str = '%.2f' % percentage
       except ZeroDivisionError:
-        percentage = 0.00
+        percentage = 0
+        percentage_str = '-'
       item_dict = {'id': item.key().id(), 'name': item.name,
           'wins': item.wins, 'losses': item.losses,
-          'comments': item.comments, 'percentage': '%.2f' % percentage}
+          'comments': item.comments, 'percentage': percentage,
+          'comment_count': item.comments.count(),
+          'percentage_str': percentage_str}
       item_list.append(item_dict)
+    item_list = sorted(item_list, key=lambda k: k['percentage'], reverse=True)
     template_values = {
         'user' : user.nickname(),
         'logout_url': users.create_logout_url("/"),
@@ -175,3 +182,74 @@ class CategoryHandler(webapp2.RequestHandler):
         'category': category.name
     }
     self.response.out.write(template.render(template_values))
+
+
+  @login_required
+  def show_export(self):
+    categories = db.GqlQuery('SELECT * from Category')
+    template = templates.get('all_category.html')
+    user = users.get_current_user()
+    category_list = []
+    for category in categories:
+      cat = {'name': category.name, 'date': str(category.date),
+          'items': category.items.count(), 'id': category.key().id(),
+          'owner': category.owner.nickname()}
+      category_list.append(cat)
+    template_values = {
+        'page'       : 'export',
+        'user'       : user.nickname(),
+        'logout_url' : users.create_logout_url("/"),
+        'categories' : category_list
+    }
+    self.response.out.write(template.render(template_values))
+
+
+  @login_required
+  def export(self, cat_id):
+    category = Category.get_by_id(int(cat_id))
+    self.response.headers['Content-Type'] = 'text/xml'
+    xml_str = '<CATEGORY><NAME>' + category.name + '</NAME>'
+    for item in category.items:
+      xml_str += '<ITEM><NAME>' + item.name + '</NAME></ITEM>'
+    xml_str += '</CATEGORY>'
+    self.response.out.write('<?xml version="1.0" encoding="ISO-8859-1"?>' + xml_str)
+
+
+  @login_required
+  def delete(self, cat_id):
+    category = Category.get_by_id(int(cat_id))
+    cat_name = category.name
+    for item in category.items:
+      item.delete()
+    category.delete()
+    self._show_home_page({'success': 'Successfully deleted category "%s"' % cat_name})
+
+
+  def import_xml(self):
+    user = users.get_current_user()
+    if user:
+      xml_file = self.request.POST.multi['file'].file
+      xml = ''
+      for line in xml_file.readlines():
+        xml += line.strip()
+      dom = minidom.parseString(xml)
+      cat_name = dom.getElementsByTagName('CATEGORY')[0].firstChild.childNodes[0].data
+      category = Category(name=cat_name, owner=user)
+      category.put()
+      items = dom.getElementsByTagName('ITEM')
+      for item in items:
+        item_name = item.firstChild.childNodes[0].data
+        item = Item(name=item_name, category=category, wins=0, losses=0)
+        item.put()
+      self._show_home_page({'success': 'Successfully imported category "%s"' % cat_name})
+    else:
+      self.redirect(users.create_login_url("/"))
+
+  def import_page(self):
+    template = templates.get('import.html')
+    user = users.get_current_user()
+    template_values = {
+        'user' : user.nickname(),
+        'logout_url': users.create_logout_url("/")
+    }
+    self.response.write(template.render(template_values))
