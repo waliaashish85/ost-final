@@ -20,15 +20,12 @@
       }
     </style>
     <script type="text/javascript">
-      $(document).ready(function(){
-        $("#appendedInput").numeric();
-      });
       numItems = 2;
       function addAnotherItem() {
         itemId = numItems + 1;
         var htmlStr = "<div class=\"control-group\" id=\"cg-" + itemId + "\">" +
                         "<label class=\"control-label\" for=\"inputItem" + itemId + "\">Item " + itemId + "</label>" +
-                          "<div class=\"controls\">" + 
+                          "<div class=\"controls\">" +
                             "<input type=\"text\" name=\"item" + itemId + "\" id=\"inputItem" + itemId + "\" placeholder=\"Item" + itemId + "\">" +
                           "</div>" +
                           "</div>";
@@ -50,10 +47,10 @@
           <a class="brand" href="#">OST Project</a>
           <div class="nav-collapse collapse">
             <p class="navbar-text pull-right">
-              Hello, {{ user }} | 
+              Hello, {{ user }} |
               <a href="{{ logout_url }}" class="navbar-link">Logout</a>
             </p>
-            
+
             <ul class="nav">
               <li class="active"><a href="/">Home</a></li>
             </ul>
@@ -76,7 +73,7 @@
             <label class="control-label" for="inputExpiry">Expire after</label>
             <div class="controls">
               <div class="input-append">
-                <input class="span2" id="appendedInput" type="text" name="expiry" placeholder="365">
+                <input class="span2" id="appendedInput" type="text" pattern="\d*" name="expiry" placeholder="365">
                 <span class="add-on">days</span>
               </div>
             </div>
@@ -104,9 +101,14 @@
         </form>
     </div>
     </div>
-
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+	<script src="http://code.jquery.com/jquery-latest.js"></script>
     <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.1.1/bootstrap.min.js"></script>
+    <script type="text/javascript">
+     $(document).ready(function(){
+	        $("#appendedInput").numeric();
+      });
+     </script>
+
   </body>
 </html>
 

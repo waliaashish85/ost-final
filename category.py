@@ -29,7 +29,10 @@ class CategoryHandler(webapp2.RequestHandler):
     if user:
       category = None
       cat_name = cgi.escape(self.request.POST['catName'])
-      expiry = int(self.request.POST['expiry'])
+      try:
+      	expiry = int(self.request.POST['expiry'])
+      except:
+      	expiry = 365
       expiry = datetime.now() + timedelta(days=expiry)
       category_exists = self._check_if_category_exists(cat_name)
       if category_exists:
